@@ -140,6 +140,39 @@ src/
 └── index.css            # Global styles and Tailwind imports
 ```
 
+## Development
+
+### Development Commands
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Run ESLint
+npm run lint
+```
+
+### Development Workflow
+
+1. **Make Changes**: Edit source files in the `src/` directory
+2. **Test Locally**: Use `npm run dev` to test your changes
+3. **Build**: Run `npm run build` to ensure production build works
+4. **Commit**: Follow conventional commit format (e.g., `feat:`, `fix:`, `docs:`)
+
+### Key Files
+
+- `src/App.tsx` - Main game logic and state management
+- `src/services/storage.ts` - LocalStorage data persistence
+- `src/utils/constants.ts` - Game data and configuration
+- `src/components/AdminPanel.tsx` - Content management interface
+- `src/types/game.ts` - TypeScript type definitions
+
 ## Contributing
 
 1. Fork the repository

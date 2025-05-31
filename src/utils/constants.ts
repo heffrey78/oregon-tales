@@ -1,4 +1,4 @@
-import type { PlayerStats, GameLocation, GameEvent } from '../types/game';
+import type { PlayerStats, GameLocation, GameEvent, GameActivity } from '../types/game';
 
 export const INITIAL_PLAYER_STATS: PlayerStats = {
   fuel: 100,
@@ -176,3 +176,139 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     vibeChange: 5
   }
 ];
+
+// Activity templates for converting legacy string activities
+export const DEFAULT_ACTIVITY_TEMPLATES: Record<string, Partial<GameActivity>[]> = {
+  city: [
+    {
+      name: 'Explore Downtown',
+      description: 'Walk around the city center',
+      moneyCost: 0,
+      vibeChange: 5,
+      timeCost: 1
+    },
+    {
+      name: 'Visit Local Museum',
+      description: 'Learn about local history and culture',
+      moneyCost: 12,
+      vibeChange: 8,
+      timeCost: 1
+    }
+  ],
+  nature: [
+    {
+      name: 'Scenic Hike',
+      description: 'Take a refreshing nature walk',
+      moneyCost: 0,
+      vibeChange: 12,
+      timeCost: 1,
+      carHealthChange: -2 // dirt roads wear on car
+    }
+  ],
+  beach: [
+    {
+      name: 'Beach Walk',
+      description: 'Stroll along the shoreline',
+      moneyCost: 0,
+      vibeChange: 8,
+      timeCost: 1
+    },
+    {
+      name: 'Tide Pool Exploration',
+      description: 'Discover marine life in tide pools',
+      moneyCost: 0,
+      vibeChange: 10,
+      timeCost: 1,
+      eventChance: 0.15
+    }
+  ]
+};
+
+// Validation and utility functions
+export const validateActivity = (activity: GameActivity): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (!activity.id) errors.push('Activity must have an ID');
+  if (!activity.name) errors.push('Activity must have a name');
+  if (!activity.description) errors.push('Activity must have a description');
+  
+  // Validate costs are not negative
+  if (activity.fuelCost && activity.fuelCost < 0) errors.push('Fuel cost cannot be negative');
+  if (activity.moneyCost && activity.moneyCost < 0) errors.push('Money cost cannot be negative');
+  if (activity.snackCost && activity.snackCost < 0) errors.push('Snack cost cannot be negative');
+  
+  // Validate event chance is between 0 and 1
+  if (activity.eventChance && (activity.eventChance < 0 || activity.eventChance > 1)) {
+    errors.push('Event chance must be between 0 and 1');
+  }
+  
+  return { valid: errors.length === 0, errors };
+};
+
+export const canPlayerPerformActivity = (activity: GameActivity, playerStats: PlayerStats): { 
+  canPerform: boolean; 
+  reasons: string[] 
+} => {
+  const reasons: string[] = [];
+  
+  // Check costs
+  if (activity.fuelCost && playerStats.fuel < activity.fuelCost) {
+    reasons.push(`Need ${activity.fuelCost} fuel (have ${playerStats.fuel})`);
+  }
+  if (activity.moneyCost && playerStats.money < activity.moneyCost) {
+    reasons.push(`Need $${activity.moneyCost} (have $${playerStats.money})`);
+  }
+  if (activity.snackCost && playerStats.snacks < activity.snackCost) {
+    reasons.push(`Need ${activity.snackCost} snacks (have ${playerStats.snacks})`);
+  }
+  
+  // Check requirements
+  if (activity.requiredResources) {
+    const req = activity.requiredResources;
+    if (req.fuel && playerStats.fuel < req.fuel) {
+      reasons.push(`Need at least ${req.fuel} fuel`);
+    }
+    if (req.money && playerStats.money < req.money) {
+      reasons.push(`Need at least $${req.money}`);
+    }
+    if (req.vibes && playerStats.vibes < req.vibes) {
+      reasons.push(`Need at least ${req.vibes} vibes`);
+    }
+    if (req.carHealth && playerStats.carHealth < req.carHealth) {
+      reasons.push(`Car needs at least ${req.carHealth} health`);
+    }
+  }
+  
+  return { canPerform: reasons.length === 0, reasons };
+};
+
+// Migration utilities
+export const convertStringActivityToGameActivity = (
+  activityName: string, 
+  locationId: string
+): GameActivity => {
+  // Convert legacy string activities to basic GameActivity objects
+  return {
+    id: `${locationId}_${activityName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+    name: activityName,
+    description: `Enjoy ${activityName.toLowerCase()} at this location`,
+    vibeChange: 3, // Default from current implementation
+    eventChance: 0.3, // Default from current implementation
+    timeCost: 0 // Don't advance time for migrated activities
+  };
+};
+
+export const migrateLocationData = (location: GameLocation): GameLocation => {
+  // Convert legacy format to new format
+  if (location.activityNames && !location.activities) {
+    return {
+      ...location,
+      activities: location.activityNames.map(name => 
+        convertStringActivityToGameActivity(name, location.id)
+      ),
+      // Keep activityNames for backward compatibility
+      activityNames: location.activityNames
+    };
+  }
+  return location;
+};

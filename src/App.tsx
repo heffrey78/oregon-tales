@@ -19,6 +19,14 @@ import {
 import { Modal } from './components/Modal';
 import { StatIcon, PixelCar } from './components/GameComponents';
 import { AdminPanel } from './components/AdminPanel';
+import type { PlayerStats, GameLocation, GameEvent, GameActivity, GameOverReason } from './types/game';
+import { 
+  INITIAL_PLAYER_STATS, 
+  DEFAULT_LOCATIONS_DATA, 
+  DEFAULT_GAME_EVENTS_DATA,
+  canPlayerPerformActivity,
+  convertStringActivityToGameActivity 
+} from './utils/constants';
 import { 
   auth, 
   db, 
@@ -26,17 +34,6 @@ import {
   eventsCollectionRef,
   getUserGameDocPath 
 } from './services/storage';
-import { 
-  INITIAL_PLAYER_STATS, 
-  DEFAULT_LOCATIONS_DATA, 
-  DEFAULT_GAME_EVENTS_DATA 
-} from './utils/constants';
-import type { 
-  PlayerStats, 
-  GameLocation, 
-  GameEvent, 
-  GameOverReason 
-} from './types/game';
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -355,14 +352,134 @@ function App() {
     saveGame();
   };
 
-  const handleActivity = (activityName: string) => {
+  // Activity effect application function
+  const applyActivityEffects = (activity: GameActivity, currentStats: PlayerStats): {
+    newStats: PlayerStats;
+    message: string;
+  } => {
+    const costs: string[] = [];
+    const gains: string[] = [];
+    
+    let newStats = { ...currentStats };
+    
+    // Apply costs
+    if (activity.fuelCost) {
+      newStats.fuel = Math.max(0, newStats.fuel - activity.fuelCost);
+      costs.push(`${activity.fuelCost} fuel`);
+    }
+    if (activity.moneyCost) {
+      newStats.money = Math.max(0, newStats.money - activity.moneyCost);
+      costs.push(`$${activity.moneyCost}`);
+    }
+    if (activity.snackCost) {
+      newStats.snacks = Math.max(0, newStats.snacks - activity.snackCost);
+      costs.push(`${activity.snackCost} snacks`);
+    }
+    if (activity.vibeCost) {
+      newStats.vibes = Math.max(0, newStats.vibes - activity.vibeCost);
+      costs.push(`${activity.vibeCost} vibes`);
+    }
+    if (activity.timeCost && activity.timeCost > 0) {
+      newStats.daysTraveled += activity.timeCost;
+      newStats.timeOfDay = 'Day'; // Reset to day after activity
+      costs.push(`${activity.timeCost} day${activity.timeCost > 1 ? 's' : ''}`);
+    }
+    
+    // Apply effects/gains
+    if (activity.vibeChange) {
+      newStats.vibes = Math.min(100, Math.max(0, newStats.vibes + activity.vibeChange));
+      if (activity.vibeChange > 0) gains.push(`${activity.vibeChange} vibes`);
+    }
+    if (activity.fuelChange) {
+      newStats.fuel = Math.min(100, Math.max(0, newStats.fuel + activity.fuelChange));
+      if (activity.fuelChange > 0) gains.push(`${activity.fuelChange} fuel`);
+    }
+    if (activity.snackChange) {
+      newStats.snacks = Math.min(20, Math.max(0, newStats.snacks + activity.snackChange));
+      if (activity.snackChange > 0) gains.push(`${activity.snackChange} snacks`);
+    }
+    if (activity.moneyChange) {
+      newStats.money = Math.max(0, newStats.money + activity.moneyChange);
+      if (activity.moneyChange > 0) gains.push(`$${activity.moneyChange}`);
+    }
+    if (activity.carHealthChange) {
+      newStats.carHealth = Math.min(100, Math.max(0, newStats.carHealth + activity.carHealthChange));
+      if (activity.carHealthChange > 0) gains.push(`${activity.carHealthChange} car health`);
+    }
+    
+    // Build message
+    let message = `Completed: ${activity.name}.`;
+    if (costs.length > 0) {
+      message += ` Cost: ${costs.join(', ')}.`;
+    }
+    if (gains.length > 0) {
+      message += ` Gained: ${gains.join(', ')}.`;
+    }
+    
+    return { newStats, message };
+  };
+
+  // Get activities for current location with backward compatibility
+  const getActivitiesForCurrentLocation = (): GameActivity[] => {
+    const currentLocationData = gameLocations[playerStats.currentLocation];
+    if (!currentLocationData) return [];
+    
+    // Handle new format
+    if (currentLocationData.activities) {
+      return currentLocationData.activities;
+    }
+    
+    // Handle legacy format - convert on the fly
+    if (currentLocationData.activityNames) {
+      return currentLocationData.activityNames.map(name => 
+        convertStringActivityToGameActivity(name, currentLocationData.id)
+      );
+    }
+    
+    return [];
+  };
+
+  // New activity handler using GameActivity objects
+  const handleActivity = (activity: GameActivity) => {
     if (gameOver) return;
-    setGameLog(prev => [...prev, `You chose to: ${activityName}. (Detailed effects TBD).`]);
-    setPlayerStats(prev => ({ ...prev, vibes: Math.min(100, prev.vibes + 3) }));
-    if (Math.random() < 0.3 && gameEvents.length > 0) {
+    
+    // 1. Validate player can perform activity
+    const validation = canPlayerPerformActivity(activity, playerStats);
+    if (!validation.canPerform) {
+      setGameLog(prev => [...prev, 
+        `Cannot perform ${activity.name}: ${validation.reasons.join(', ')}`
+      ]);
+      return;
+    }
+    
+    // 2. Apply costs and effects
+    const result = applyActivityEffects(activity, playerStats);
+    setPlayerStats(result.newStats);
+    
+    // 3. Log the action and results
+    setGameLog(prev => [...prev, result.message]);
+    
+    // 4. Maybe trigger random event
+    const eventChance = activity.eventChance || 0;
+    if (eventChance > 0 && Math.random() < eventChance && gameEvents.length > 0) {
       triggerRandomEventById();
     }
+    
+    // 5. Save game state
     saveGame();
+  };
+
+  // Backward compatibility wrapper for legacy string activities
+  const handleLegacyActivity = (activityName: string) => {
+    const activity: GameActivity = {
+      id: `legacy_${activityName.toLowerCase().replace(/\s+/g, '_')}`,
+      name: activityName,
+      description: `Enjoy ${activityName.toLowerCase()}`,
+      vibeChange: 3,
+      eventChance: 0.3
+    };
+    
+    handleActivity(activity);
   };
 
   const restartGame = async () => {
@@ -580,20 +697,67 @@ function App() {
               </div>
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Local Activities:</h3>
-                {(currentLocationData.activityNames && currentLocationData.activityNames.length > 0) ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {currentLocationData.activityNames.map(name => (
-                      <button
-                        key={name}
-                        onClick={() => handleActivity(name)}
-                        disabled={!!gameOver}
-                        className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-300 text-yellow-900 font-medium py-2 px-3 rounded-lg shadow text-sm transition-colors"
-                      >
-                        {name}
-                      </button>
-                    ))}
-                  </div>
-                ) : <p className="text-sm text-gray-500">No specific activities listed here.</p>}
+                {(() => {
+                  const activities = getActivitiesForCurrentLocation();
+                  return activities.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {activities.map(activity => {
+                        const validation = canPlayerPerformActivity(activity, playerStats);
+                        const isDisabled = !!gameOver || !validation.canPerform;
+                        
+                        return (
+                          <div key={activity.id} className="relative">
+                            <button
+                              onClick={() => handleActivity(activity)}
+                              disabled={isDisabled}
+                              className={`w-full p-3 rounded-lg shadow text-left transition-colors ${
+                                isDisabled 
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                  : 'bg-yellow-400 hover:bg-yellow-500 text-yellow-900'
+                              }`}
+                            >
+                              <div className="font-medium">{activity.name}</div>
+                              <div className="text-xs mt-1 opacity-75">{activity.description}</div>
+                              
+                              {/* Cost indicators */}
+                              {(activity.fuelCost || activity.moneyCost || activity.snackCost || activity.timeCost) && (
+                                <div className="text-xs mt-2 opacity-60">
+                                  Costs: {[
+                                    activity.fuelCost && `${activity.fuelCost} fuel`,
+                                    activity.moneyCost && `$${activity.moneyCost}`,
+                                    activity.snackCost && `${activity.snackCost} snacks`,
+                                    activity.timeCost && `${activity.timeCost} day${activity.timeCost > 1 ? 's' : ''}`
+                                  ].filter(Boolean).join(', ')}
+                                </div>
+                              )}
+                              
+                              {/* Effect indicators */}
+                              {(activity.vibeChange || activity.fuelChange || activity.snackChange || activity.moneyChange) && (
+                                <div className="text-xs mt-1 opacity-60">
+                                  Effects: {[
+                                    activity.vibeChange && `${activity.vibeChange > 0 ? '+' : ''}${activity.vibeChange} vibes`,
+                                    activity.fuelChange && `${activity.fuelChange > 0 ? '+' : ''}${activity.fuelChange} fuel`,
+                                    activity.snackChange && `${activity.snackChange > 0 ? '+' : ''}${activity.snackChange} snacks`,
+                                    activity.moneyChange && `${activity.moneyChange > 0 ? '+$' : '-$'}${Math.abs(activity.moneyChange)}`
+                                  ].filter(Boolean).join(', ')}
+                                </div>
+                              )}
+                            </button>
+                            
+                            {/* Tooltip for disabled activities */}
+                            {isDisabled && !gameOver && (
+                              <div className="absolute bottom-full left-0 mb-2 p-2 bg-red-600 text-white text-xs rounded shadow-lg z-10 max-w-48 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {validation.reasons.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No activities available here.</p>
+                  );
+                })()}
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Travel Options:</h3>

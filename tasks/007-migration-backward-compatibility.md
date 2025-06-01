@@ -2,7 +2,7 @@
 
 **User Story**: As a player with existing save data, I want my game to continue working when the activity system is updated so that I don't lose my progress.
 
-## Status: ⏳ PENDING
+## Status: ⏳ WON'T DO
 
 ## Parent Task: 002
 ## Sub Tasks: None

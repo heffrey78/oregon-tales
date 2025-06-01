@@ -29,7 +29,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex justify-center items-center p-4 z-50"
       onClick={handleBackdropClick}
     >
-      <div className={`bg-white p-5 sm:p-6 rounded-xl shadow-2xl ${sizeClasses[size]} w-full transform transition-all`}>
+      <div className={`bg-white p-5 sm:p-6 rounded-xl shadow-2xl ${sizeClasses[size]} w-full transform transition-all max-h-[90vh] flex flex-col`}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
@@ -42,7 +42,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             </svg>
           </button>
         </div>
-        <div className="text-gray-700">
+        <div className="text-gray-700 overflow-y-auto flex-grow pr-2">
           {children}
         </div>
       </div>

@@ -315,14 +315,14 @@ const handleLegacyActivity = (activityName: string) => {
 
 ## Testing Checklist
 
-- [ ] Activity costs properly deducted from player stats
-- [ ] Activity effects properly applied to player stats
-- [ ] Activity validation prevents invalid actions
-- [ ] UI clearly shows activity costs and availability
-- [ ] Backward compatibility with legacy activities
-- [ ] Resource bounds checking (no negative values)
-- [ ] Time advancement works correctly
-- [ ] Event triggering works as expected
+- [x] Activity costs properly deducted from player stats
+- [x] Activity effects properly applied to player stats
+- [x] Activity validation prevents invalid actions
+- [x] UI clearly shows activity costs and availability
+- [x] Backward compatibility with legacy activities
+- [x] Resource bounds checking (no negative values)
+- [x] Time advancement works correctly
+- [x] Event triggering works as expected
 
 ## Success Criteria
 

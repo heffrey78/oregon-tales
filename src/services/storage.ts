@@ -1,4 +1,5 @@
 import { PlayerStats, GameLocation, GameEvent, GameActivity } from '../types/game';
+import { addIconsToLocationActivities, addIconsToEvent } from '../utils/iconHelpers';
 
 // LocalStorage keys
 const STORAGE_KEYS = {
@@ -27,18 +28,21 @@ export const loadGameState = async (): Promise<PlayerStats | null> => {
 export const saveLocation = async (location: GameLocation) => {
   const locations = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCATIONS) || '[]');
   
-  if (location.id) {
+  // Process the location to ensure activities have icons
+  const processedLocation = addIconsToLocationActivities(location);
+  
+  if (processedLocation.id) {
     // Update existing location
-    const index = locations.findIndex((loc: GameLocation) => loc.id === location.id);
+    const index = locations.findIndex((loc: GameLocation) => loc.id === processedLocation.id);
     if (index >= 0) {
-      locations[index] = location;
+      locations[index] = processedLocation;
     } else {
-      locations.push(location);
+      locations.push(processedLocation);
     }
   } else {
     // Add new location with generated ID
     const newLocation = {
-      ...location,
+      ...processedLocation,
       id: `location_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
     locations.push(newLocation);
@@ -49,7 +53,10 @@ export const saveLocation = async (location: GameLocation) => {
 
 export const getLocations = async (): Promise<GameLocation[]> => {
   const data = localStorage.getItem(STORAGE_KEYS.LOCATIONS);
-  return data ? JSON.parse(data) : [];
+  const locations = data ? JSON.parse(data) : [];
+  
+  // Make sure activities in all locations have icons
+  return locations.map(addIconsToLocationActivities);
 };
 
 export const deleteLocation = async (locationId: string) => {
@@ -61,18 +68,21 @@ export const deleteLocation = async (locationId: string) => {
 export const saveEvent = async (event: GameEvent) => {
   const events = JSON.parse(localStorage.getItem(STORAGE_KEYS.EVENTS) || '[]');
   
-  if (event.id) {
+  // Process the event to ensure it has an icon
+  const processedEvent = addIconsToEvent(event);
+  
+  if (processedEvent.id) {
     // Update existing event
-    const index = events.findIndex((evt: GameEvent) => evt.id === event.id);
+    const index = events.findIndex((evt: GameEvent) => evt.id === processedEvent.id);
     if (index >= 0) {
-      events[index] = event;
+      events[index] = processedEvent;
     } else {
-      events.push(event);
+      events.push(processedEvent);
     }
   } else {
     // Add new event with generated ID
     const newEvent = {
-      ...event,
+      ...processedEvent,
       id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
     events.push(newEvent);
@@ -83,7 +93,10 @@ export const saveEvent = async (event: GameEvent) => {
 
 export const getEvents = async (): Promise<GameEvent[]> => {
   const data = localStorage.getItem(STORAGE_KEYS.EVENTS);
-  return data ? JSON.parse(data) : [];
+  const events = data ? JSON.parse(data) : [];
+  
+  // Make sure all events have icons
+  return events.map(addIconsToEvent);
 };
 
 export const deleteEvent = async (eventId: string) => {

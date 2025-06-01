@@ -1,9 +1,19 @@
+// filepath: /media/jeffwikstrom/Secondary/Projects/oregon-tales/src/components/AdminPanel.tsx
 import { FC, useState, Dispatch, SetStateAction } from 'react';
-import { PlusSquare, Edit3, Trash2, UploadCloud, Activity } from 'lucide-react';
+import { PlusSquare, Edit3, Trash2, UploadCloud, Activity, MapPin, AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { db } from '../services/storage';
 import { DEFAULT_LOCATIONS_DATA, DEFAULT_GAME_EVENTS_DATA } from '../utils/constants';
 import type { GameLocation, GameEvent, GameActivity } from '../types/game';
+
+// Import new admin components
+import { EntityCard } from './admin/EntityCard';
+import { EntityManager } from './admin/EntityManager';
+import { AdminActionButton } from './admin/AdminActionButton';
+import { LocationForm } from './admin/forms/LocationForm';
+import { EventForm } from './admin/forms/EventForm';
+import { ActivityForm } from './admin/forms/ActivityForm';
+import { EmojiDisplay } from './admin/EmojiPicker';
 
 interface AdminPanelProps {
   gameLocations: Record<string, GameLocation>;
@@ -262,427 +272,205 @@ export const AdminPanel: FC<AdminPanelProps> = ({
     }
   };
 
+  // Helper function to get default event icon based on event type
+  const getDefaultEventIcon = (eventType: string): string => {
+    switch (eventType) {
+      case 'positive':
+        return '✨';
+      case 'negative':
+        return '⚠️';
+      case 'urgent':
+        return '🚨';
+      case 'neutral':
+      default:
+        return '💬';
+    }
+  };
+
   const inputClass = "mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm";
   const labelClass = "block text-sm font-medium text-gray-700";
-
-  // ActivityCard component
-  interface ActivityCardProps {
-    activity: GameActivity;
-    onEdit: () => void;
-    onDelete: () => void;
-    isUserAuthenticated: boolean;
-  }
-
-  const ActivityCard: FC<ActivityCardProps> = ({ 
-    activity, 
-    onEdit, 
-    onDelete, 
-    isUserAuthenticated 
-  }) => (
-    <div className="bg-white p-3 rounded-lg shadow-sm border">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="font-medium text-gray-900">{activity.name}</div>
-          <div className="text-sm text-gray-600 mt-1">{activity.description}</div>
-          
-          {/* Cost display */}
-          <div className="mt-2 text-xs text-gray-500">
-            {[
-              activity.fuelCost && `${activity.fuelCost} fuel`,
-              activity.moneyCost && `$${activity.moneyCost}`,
-              activity.snackCost && `${activity.snackCost} snacks`,
-              activity.timeCost && `${activity.timeCost} day${activity.timeCost > 1 ? 's' : ''}`,
-              activity.vibeCost && `${activity.vibeCost} vibes`
-            ].filter(Boolean).join(' • ') || 'No costs'}
-          </div>
-          
-          {/* Effects display */}
-          <div className="mt-1 text-xs text-green-600">
-            {[
-              activity.vibeChange && `${activity.vibeChange > 0 ? '+' : ''}${activity.vibeChange} vibes`,
-              activity.fuelChange && `${activity.fuelChange > 0 ? '+' : ''}${activity.fuelChange} fuel`,
-              activity.snackChange && `${activity.snackChange > 0 ? '+' : ''}${activity.snackChange} snacks`,
-              activity.moneyChange && `${activity.moneyChange > 0 ? '+$' : '-$'}${Math.abs(activity.moneyChange)}`,
-              activity.carHealthChange && `${activity.carHealthChange > 0 ? '+' : ''}${activity.carHealthChange} car health`
-            ].filter(Boolean).join(' • ') || 'No effects'}
-          </div>
-          
-          {/* Event chance */}
-          {activity.eventChance && activity.eventChance > 0 && (
-            <div className="mt-1 text-xs text-purple-600">
-              {Math.round(activity.eventChance * 100)}% event chance
-            </div>
-          )}
-        </div>
-        
-        <div className="flex space-x-2 ml-4">
-          <button
-            onClick={onEdit}
-            disabled={!isUserAuthenticated}
-            className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
-          >
-            <Edit3 size={16} />
-          </button>
-          <button
-            onClick={onDelete}
-            disabled={!isUserAuthenticated}
-            className="text-red-600 hover:text-red-800 disabled:text-gray-400"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="mt-6 p-4 bg-gray-100 rounded-lg shadow-inner">
       <h2 className="text-2xl font-semibold text-gray-800 mb-4">Admin Panel</h2>
-      <button
+      <AdminActionButton
         onClick={seedInitialData}
         disabled={!isUserAuthenticated}
-        className="mb-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg shadow flex items-center"
+        icon={<UploadCloud size={18} />}
+        variant="success"
+        size="lg"
+        className="mb-4"
       >
-        <UploadCloud size={18} className="mr-2" /> Seed Initial Locations & Events (if empty)
-      </button>
+        Seed Initial Locations & Events (if empty)
+      </AdminActionButton>
 
       {/* Locations Management */}
+      <EntityManager
+        title="Manage Locations"
+        icon={<MapPin />}
+        onAddNew={() => {
+          setEditingLocation({
+            id: '',
+            name: '',
+            description: '',
+            icon: '📍',
+            connectionsStr: '{}',
+            activityNamesStr: '',
+            eventChance: 0.15
+          });
+          setShowLocationForm(true);
+        }}
+        isUserAuthenticated={isUserAuthenticated}
+      >
+        {(Object.values(gameLocations) as GameLocation[]).map(location => (
+          <EntityCard
+            key={location.id}
+            title={location.name}
+            subtitle={location.description}
+            icon={location.icon}
+            metadata={[{ label: 'connections', value: String(Object.keys(location.connections || {}).length) }]}
+            onEdit={() => handleEditLocation(location)}
+            onDelete={() => deleteLocation(location.id)}
+            isUserAuthenticated={isUserAuthenticated}
+          />
+        ))}
+      </EntityManager>
+
+            {/* Activity Management */}
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">Manage Locations</h3>
-        <button 
-          onClick={() => {
-            setEditingLocation({
-              id: '',
-              name: '',
-              description: '',
-              icon: '📍',
-              connectionsStr: '{}',
-              activityNamesStr: '', // Keeping for interface compatibility but not used
-              eventChance: 0.15
-            });
-            setShowLocationForm(true);
-          }}
-          disabled={!isUserAuthenticated}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-2 px-3 rounded-lg shadow mb-2 flex items-center">
-          <PlusSquare size={18} className="mr-2" /> Add New Location
-        </button>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {(Object.values(gameLocations) as GameLocation[]).map(location => (
-            <div key={location.id} className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-              <div className="flex items-center space-x-3">
-                <span className="text-2xl">{location.icon}</span>
-                <div>
-                  <div className="font-medium text-gray-900">{location.name}</div>
-                  <div className="text-sm text-gray-500">Connections: {Object.keys(location.connections || {}).length}</div>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEditLocation(location)}
-                  disabled={!isUserAuthenticated}
-                  className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm flex items-center"
-                >
-                  <Edit3 size={14} className="mr-1" /> Edit
-                </button>
-                <button
-                  onClick={() => deleteLocation(location.id)}
-                  disabled={!isUserAuthenticated}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm flex items-center"
-                >
-                  <Trash2 size={14} className="mr-1" /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
+        {/* Location selector */}
+        <div className="mb-4 px-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Location to Manage Activities
+          </label>
+          <select
+            value={selectedLocationForActivity}
+            onChange={e => setSelectedLocationForActivity(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Choose a location...</option>
+            {Object.values(gameLocations).map(location => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
         </div>
+        
+        {selectedLocationForActivity && (
+          <EntityManager
+            title="Activity Management"
+            icon={<Activity />}
+            onAddNew={() => {
+              setEditingActivity({
+                id: '',
+                name: '',
+                description: '',
+                vibeChange: 0,
+                fuelCost: 0,
+                moneyCost: 0,
+                snackCost: 0,
+                timeCost: 0,
+                eventChance: 0
+              });
+              setShowActivityForm(true);
+            }}
+            isUserAuthenticated={isUserAuthenticated}
+          >
+            {getActivitiesForLocation(selectedLocationForActivity).map(activity => (
+              <EntityCard 
+                key={activity.id}
+                title={activity.name}
+                subtitle={activity.description}
+                icon={activity.icon || '🔍'}
+                onEdit={() => handleEditActivity(activity)}
+                onDelete={() => handleDeleteActivity(activity.id)}
+                isUserAuthenticated={isUserAuthenticated}
+                additionalContent={
+                  <>
+                    {/* Costs display */}
+                    <div className="mt-2 text-xs text-gray-500">
+                      {[
+                        activity.fuelCost && `${activity.fuelCost} fuel`,
+                        activity.moneyCost && `$${activity.moneyCost}`,
+                        activity.snackCost && `${activity.snackCost} snacks`,
+                        activity.timeCost && `${activity.timeCost} day${activity.timeCost > 1 ? 's' : ''}`,
+                        activity.vibeCost && `${activity.vibeCost} vibes`
+                      ].filter(Boolean).join(' • ') || 'No costs'}
+                    </div>
+                    
+                    {/* Effects display */}
+                    <div className="mt-1 text-xs text-green-600">
+                      {[
+                        activity.vibeChange && `${activity.vibeChange > 0 ? '+' : ''}${activity.vibeChange} vibes`,
+                        activity.fuelChange && `${activity.fuelChange > 0 ? '+' : ''}${activity.fuelChange} fuel`,
+                        activity.snackChange && `${activity.snackChange > 0 ? '+' : ''}${activity.snackChange} snacks`,
+                        activity.moneyChange && `${activity.moneyChange > 0 ? '+$' : '-$'}${Math.abs(activity.moneyChange)}`,
+                        activity.carHealthChange && `${activity.carHealthChange > 0 ? '+' : ''}${activity.carHealthChange} car health`
+                      ].filter(Boolean).join(' • ') || 'No effects'}
+                    </div>
+                    
+                    {/* Event chance */}
+                    {activity.eventChance && activity.eventChance > 0 && (
+                      <div className="mt-1 text-xs text-purple-600">
+                        {Math.round(activity.eventChance * 100)}% event chance
+                      </div>
+                    )}
+                  </>
+                }
+              />
+            ))}
+          </EntityManager>
+        )}
       </div>
 
       {/* Events Management */}
-      <div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">Manage Events</h3>
-        <button 
-          onClick={() => {
-            setEditingEvent({
-              id: '',
-              type: 'neutral',
-              message: '',
-              vibeChange: 0,
-              fuelChange: 0,
-              snackChange: 0,
-              moneyChange: 0,
-              carHealthChange: 0
-            });
-            setShowEventForm(true);
-          }}
-          disabled={!isUserAuthenticated}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-2 px-3 rounded-lg shadow mb-2 flex items-center">
-          <PlusSquare size={18} className="mr-2" /> Add New Event
-        </button>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {(gameEvents as GameEvent[]).map((event: GameEvent) => (
-            <div key={event.id} className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-              <div>
-                <div className="font-medium text-gray-900">{event.id}</div>
-                <div className="text-sm text-gray-500">{event.message}</div>
-                <div className="text-xs text-gray-400 capitalize">Type: {event.type}</div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEditEvent(event)}
-                  disabled={!isUserAuthenticated}
-                  className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm flex items-center"
-                >
-                  <Edit3 size={14} className="mr-1" /> Edit
-                </button>
-                <button
-                  onClick={() => deleteEvent(event.id)}
-                  disabled={!isUserAuthenticated}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm flex items-center"
-                >
-                  <Trash2 size={14} className="mr-1" /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Activity Management */}
-      <div className="mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center">
-            <Activity size={24} className="mr-2" /> Activity Management
-          </h2>
-          
-          {/* Location selector */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Location to Manage Activities
-            </label>
-            <select
-              value={selectedLocationForActivity}
-              onChange={e => setSelectedLocationForActivity(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Choose a location...</option>
-              {Object.values(gameLocations).map(location => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {selectedLocationForActivity && (
-            <>
-              <button
-                onClick={() => {
-                  setEditingActivity({
-                    id: '',
-                    name: '',
-                    description: '',
-                    vibeChange: 0,
-                    fuelCost: 0,
-                    moneyCost: 0,
-                    snackCost: 0,
-                    timeCost: 0,
-                    eventChance: 0
-                  });
-                  setShowActivityForm(true);
-                }}
-                disabled={!isUserAuthenticated}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-2 px-3 rounded-lg shadow mb-2 flex items-center"
-              >
-                <PlusSquare size={18} className="mr-2" /> Add Activity
-              </button>
-              
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {getActivitiesForLocation(selectedLocationForActivity).map(activity => (
-                  <ActivityCard 
-                    key={activity.id} 
-                    activity={activity}
-                    onEdit={() => handleEditActivity(activity)}
-                    onDelete={() => handleDeleteActivity(activity.id)}
-                    isUserAuthenticated={isUserAuthenticated}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      <EntityManager
+        title="Manage Events"
+        icon={<AlertTriangle />}
+        onAddNew={() => {
+          setEditingEvent({
+            id: '',
+            type: 'neutral',
+            message: '',
+            vibeChange: 0,
+            fuelChange: 0,
+            snackChange: 0,
+            moneyChange: 0,
+            carHealthChange: 0
+          });
+          setShowEventForm(true);
+        }}
+        isUserAuthenticated={isUserAuthenticated}
+      >
+        {(gameEvents as GameEvent[]).map((event: GameEvent) => (
+          <EntityCard
+            key={event.id}
+            title={event.id}
+            subtitle={event.message}
+            icon={event.icon || getDefaultEventIcon(event.type)}
+            metadata={[{ label: 'type', value: event.type }]}
+            onEdit={() => handleEditEvent(event)}
+            onDelete={() => deleteEvent(event.id)}
+            isUserAuthenticated={isUserAuthenticated}
+          />
+        ))}
+      </EntityManager>
 
       {/* Location Form Modal */}
-      <Modal isOpen={showLocationForm} onClose={() => setShowLocationForm(false)} title={editingLocation?.id ? "Edit Location" : "Add New Location"} size="lg">
-        <form onSubmit={saveLocation} className="space-y-3">
-          <div>
-            <label className={labelClass}>Location ID</label>
-            <input 
-              type="text" 
-              value={editingLocation?.id || ''} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, id: e.target.value} : null)} 
-              className={inputClass} 
-              required 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Name</label>
-            <input 
-              type="text" 
-              value={editingLocation?.name || ''} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, name: e.target.value} : null)} 
-              className={inputClass} 
-              required 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Description</label>
-            <textarea 
-              value={editingLocation?.description || ''} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, description: e.target.value} : null)} 
-              className={inputClass} 
-              rows={2} 
-              required 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Icon (emoji)</label>
-            <input 
-              type="text" 
-              value={editingLocation?.icon || ''} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, icon: e.target.value} : null)} 
-              className={inputClass} 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Connections (JSON format: {`{"destination": fuelCost}`})</label>
-            <input 
-              type="text" 
-              value={editingLocation?.connectionsStr || '{}'} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, connectionsStr: e.target.value} : null)} 
-              className={inputClass} 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Activities</label>
-            <div className="text-sm text-gray-600 mb-2">
-              Use the Activity Management section below to add/edit activities for this location.
-            </div>
-            <div className="bg-gray-100 p-3 rounded text-sm">
-              {getActivitiesForLocation(editingLocation?.id || '').length} activities configured
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>Event Chance (0.0 to 1.0)</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              value={editingLocation?.eventChance || 0.15} 
-              onChange={e => setEditingLocation(prev => prev ? {...prev, eventChance: parseFloat(e.target.value)} : null)} 
-              className={inputClass} 
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={!isUserAuthenticated} 
-            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg shadow"
-          >
-            Save Location
-          </button>
-        </form>
-      </Modal>
-
-      {/* Event Form Modal */}
-      <Modal isOpen={showEventForm} onClose={() => setShowEventForm(false)} title={editingEvent?.id ? "Edit Event" : "Add New Event"} size="lg">
-        <form onSubmit={saveEvent} className="space-y-3">
-          <div>
-            <label className={labelClass}>Event ID</label>
-            <input 
-              type="text" 
-              value={editingEvent?.id || ''} 
-              onChange={e => setEditingEvent(prev => prev ? {...prev, id: e.target.value} : null)} 
-              className={inputClass} 
-              required 
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Type</label>
-            <select 
-              value={editingEvent?.type || 'neutral'} 
-              onChange={e => setEditingEvent(prev => prev ? {...prev, type: e.target.value as any} : null)} 
-              className={inputClass}
-            >
-              <option value="positive">Positive</option>
-              <option value="negative">Negative</option>
-              <option value="neutral">Neutral</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Message</label>
-            <textarea 
-              value={editingEvent?.message || ''} 
-              onChange={e => setEditingEvent(prev => prev ? {...prev, message: e.target.value} : null)} 
-              className={inputClass} 
-              rows={2} 
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Vibe Change</label>
-              <input 
-                type="number" 
-                value={editingEvent?.vibeChange || 0} 
-                onChange={e => setEditingEvent(prev => prev ? {...prev, vibeChange: parseInt(e.target.value)} : null)} 
-                className={inputClass} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Fuel Change</label>
-              <input 
-                type="number" 
-                value={editingEvent?.fuelChange || 0} 
-                onChange={e => setEditingEvent(prev => prev ? {...prev, fuelChange: parseInt(e.target.value)} : null)} 
-                className={inputClass} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Snack Change</label>
-              <input 
-                type="number" 
-                value={editingEvent?.snackChange || 0} 
-                onChange={e => setEditingEvent(prev => prev ? {...prev, snackChange: parseInt(e.target.value)} : null)} 
-                className={inputClass} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Money Change</label>
-              <input 
-                type="number" 
-                value={editingEvent?.moneyChange || 0} 
-                onChange={e => setEditingEvent(prev => prev ? {...prev, moneyChange: parseInt(e.target.value)} : null)} 
-                className={inputClass} 
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Car Health Change</label>
-              <input 
-                type="number" 
-                value={editingEvent?.carHealthChange || 0} 
-                onChange={e => setEditingEvent(prev => prev ? {...prev, carHealthChange: parseInt(e.target.value)} : null)} 
-                className={inputClass} 
-              />
-            </div>
-          </div>
-          <button 
-            type="submit" 
-            disabled={!isUserAuthenticated} 
-            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg shadow"
-          >
-            Save Event
-          </button>
-        </form>
+      <Modal 
+        isOpen={showLocationForm} 
+        onClose={() => setShowLocationForm(false)} 
+        title={editingLocation?.id ? "Edit Location" : "Add New Location"} 
+        size="lg"
+      >
+        <LocationForm
+          location={editingLocation}
+          onSave={saveLocation}
+          onChange={setEditingLocation}
+          isUserAuthenticated={isUserAuthenticated}
+          activities={editingLocation ? getActivitiesForLocation(editingLocation.id) : []}
+        />
       </Modal>
 
       {/* Activity Form Modal */}
@@ -692,272 +480,27 @@ export const AdminPanel: FC<AdminPanelProps> = ({
         title={editingActivity?.id ? "Edit Activity" : "Add New Activity"} 
         size="xl"
       >
-        <form onSubmit={saveActivity} className="space-y-4">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Activity ID</label>
-              <input 
-                type="text" 
-                value={editingActivity?.id || ''} 
-                onChange={e => setEditingActivity(prev => prev ? {...prev, id: e.target.value} : null)} 
-                className={inputClass} 
-                required 
-                placeholder="unique_activity_id"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Activity Name</label>
-              <input 
-                type="text" 
-                value={editingActivity?.name || ''} 
-                onChange={e => setEditingActivity(prev => prev ? {...prev, name: e.target.value} : null)} 
-                className={inputClass} 
-                required 
-                placeholder="Visit Local Museum"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className={labelClass}>Description</label>
-            <textarea 
-              value={editingActivity?.description || ''} 
-              onChange={e => setEditingActivity(prev => prev ? {...prev, description: e.target.value} : null)} 
-              className={inputClass} 
-              rows={3}
-              required
-              placeholder="Learn about local history and culture"
-            />
-          </div>
-          
-          {/* Costs Section */}
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Costs (What player pays)</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div>
-                <label className={labelClass}>Fuel Cost</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.fuelCost || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, fuelCost: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Money Cost ($)</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.moneyCost || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, moneyCost: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Snack Cost</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.snackCost || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, snackCost: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Vibe Cost</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.vibeCost || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, vibeCost: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Time Cost (days)</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.timeCost || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, timeCost: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Effects Section */}
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Effects (What player gains/loses)</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div>
-                <label className={labelClass}>Vibe Change</label>
-                <input 
-                  type="number" 
-                  value={editingActivity?.vibeChange || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, vibeChange: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Fuel Change</label>
-                <input 
-                  type="number" 
-                  value={editingActivity?.fuelChange || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, fuelChange: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Snack Change</label>
-                <input 
-                  type="number" 
-                  value={editingActivity?.snackChange || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, snackChange: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Money Change ($)</label>
-                <input 
-                  type="number" 
-                  value={editingActivity?.moneyChange || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, moneyChange: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Car Health Change</label>
-                <input 
-                  type="number" 
-                  value={editingActivity?.carHealthChange || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, carHealthChange: parseInt(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Advanced Options */}
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Advanced Options</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Event Chance (0.0 to 1.0)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={editingActivity?.eventChance || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {...prev, eventChance: parseFloat(e.target.value) || 0} : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div className="flex items-center space-x-4 pt-6">
-                <label className="flex items-center">
-                  <input 
-                    type="checkbox"
-                    checked={editingActivity?.oneTimeOnly || false}
-                    onChange={e => setEditingActivity(prev => prev ? {...prev, oneTimeOnly: e.target.checked} : null)}
-                    className="mr-2"
-                  />
-                  One-time only
-                </label>
-                <label className="flex items-center">
-                  <input 
-                    type="checkbox"
-                    checked={editingActivity?.repeatable !== false}
-                    onChange={e => setEditingActivity(prev => prev ? {...prev, repeatable: e.target.checked} : null)}
-                    className="mr-2"
-                  />
-                  Repeatable
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          {/* Requirements Section */}
-          <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Minimum Requirements</h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div>
-                <label className={labelClass}>Min Fuel</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.requiredResources?.fuel || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {
-                    ...prev, 
-                    requiredResources: { 
-                      ...prev.requiredResources, 
-                      fuel: parseInt(e.target.value) || undefined 
-                    }
-                  } : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Min Money ($)</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.requiredResources?.money || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {
-                    ...prev, 
-                    requiredResources: { 
-                      ...prev.requiredResources, 
-                      money: parseInt(e.target.value) || undefined 
-                    }
-                  } : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Min Vibes</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.requiredResources?.vibes || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {
-                    ...prev, 
-                    requiredResources: { 
-                      ...prev.requiredResources, 
-                      vibes: parseInt(e.target.value) || undefined 
-                    }
-                  } : null)} 
-                  className={inputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Min Car Health</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  value={editingActivity?.requiredResources?.carHealth || 0} 
-                  onChange={e => setEditingActivity(prev => prev ? {
-                    ...prev, 
-                    requiredResources: { 
-                      ...prev.requiredResources, 
-                      carHealth: parseInt(e.target.value) || undefined 
-                    }
-                  } : null)} 
-                  className={inputClass} 
-                />
-              </div>
-            </div>
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={!isUserAuthenticated} 
-            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg shadow"
-          >
-            Save Activity
-          </button>
-        </form>
+        <ActivityForm
+          activity={editingActivity}
+          onSave={saveActivity}
+          onChange={setEditingActivity}
+          isUserAuthenticated={isUserAuthenticated}
+        />
+      </Modal>
+
+      {/* Event Form Modal */}
+      <Modal 
+        isOpen={showEventForm} 
+        onClose={() => setShowEventForm(false)} 
+        title={editingEvent?.id ? "Edit Event" : "Add New Event"} 
+        size="lg"
+      >
+        <EventForm
+          event={editingEvent}
+          onSave={saveEvent}
+          onChange={setEditingEvent}
+          isUserAuthenticated={isUserAuthenticated}
+        />
       </Modal>
     </div>
   );

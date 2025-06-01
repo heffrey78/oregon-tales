@@ -13,6 +13,7 @@ export interface GameActivity {
   id: string;
   name: string;
   description: string;
+  icon?: string; // Emoji icon for visual representation
   
   // Costs (what player pays to do activity)
   fuelCost?: number;
@@ -79,6 +80,7 @@ export interface GameEvent {
   id: string;
   type: 'positive' | 'negative' | 'neutral' | 'urgent';
   message: string;
+  icon?: string; // Emoji icon for visual representation
   vibeChange?: number;
   fuelChange?: number;
   snackChange?: number;

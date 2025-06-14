@@ -31,6 +31,7 @@ export interface GameActivity {
   
   // Meta properties
   eventChance?: number; // chance to trigger random event after activity
+  assignedEventIds?: string[]; // specific events that can be triggered by this activity
   requiredResources?: {
     fuel?: number;
     snacks?: number;
@@ -81,6 +82,8 @@ export interface GameEvent {
   type: 'positive' | 'negative' | 'neutral' | 'urgent';
   message: string;
   icon?: string; // Emoji icon for visual representation
+  baseChance?: number; // base probability of this event occurring (0-1)
+  activityMultiplier?: number; // multiplier applied when triggered by assigned activity
   vibeChange?: number;
   fuelChange?: number;
   snackChange?: number;

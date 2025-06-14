@@ -439,6 +439,34 @@ function App() {
     return [];
   };
 
+  // Check for and trigger activity-assigned events
+  const tryTriggerActivityEvents = (activity: GameActivity): boolean => {
+    if (!activity.assignedEventIds || activity.assignedEventIds.length === 0) {
+      return false;
+    }
+
+    // Try each assigned event with enhanced probability
+    for (const eventId of activity.assignedEventIds) {
+      const event = gameEvents.find(e => e.id === eventId);
+      if (!event) {
+        console.warn(`Activity ${activity.id} references non-existent event: ${eventId}`);
+        continue;
+      }
+
+      // Calculate enhanced probability
+      const baseChance = event.baseChance || 0.15; // Default 15% if not specified
+      const multiplier = event.activityMultiplier || 2.0; // Default 2x multiplier
+      const enhancedChance = Math.min(1.0, baseChance * multiplier); // Cap at 100%
+
+      if (Math.random() < enhancedChance) {
+        triggerRandomEventById(eventId);
+        return true; // Event triggered, stop checking others
+      }
+    }
+
+    return false; // No assigned events triggered
+  };
+
   // New activity handler using GameActivity objects
   const handleActivity = (activity: GameActivity) => {
     if (gameOver) return;
@@ -459,10 +487,14 @@ function App() {
     // 3. Log the action and results
     setGameLog(prev => [...prev, result.message]);
     
-    // 4. Maybe trigger random event
-    const eventChance = activity.eventChance || 0;
-    if (eventChance > 0 && Math.random() < eventChance && gameEvents.length > 0) {
-      triggerRandomEventById();
+    // 4. Maybe trigger events (check assigned events first, then random)
+    const eventTriggered = tryTriggerActivityEvents(activity);
+    if (!eventTriggered) {
+      // Fall back to random event if no assigned events triggered
+      const eventChance = activity.eventChance || 0;
+      if (eventChance > 0 && Math.random() < eventChance && gameEvents.length > 0) {
+        triggerRandomEventById();
+      }
     }
     
     // 5. Save game state

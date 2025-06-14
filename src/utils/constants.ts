@@ -109,6 +109,9 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'GOOD_WEATHER',
     type: 'positive',
     message: "Beautiful sunny skies! Everyone's feeling great.",
+    icon: '☀️',
+    baseChance: 0.20,
+    activityMultiplier: 1.5,
     vibeChange: 10,
     fuelChange: 0,
     moneyChange: 0,
@@ -119,6 +122,9 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'FOUND_SNACKS',
     type: 'positive',
     message: "You found a forgotten bag of trail mix!",
+    icon: '🥜',
+    baseChance: 0.10,
+    activityMultiplier: 3.0,
     vibeChange: 5,
     snackChange: 2
   },
@@ -126,18 +132,27 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'LOCAL_TIP',
     type: 'neutral',
     message: "A friendly local gave you a tip about a hidden gem.",
+    icon: '💡',
+    baseChance: 0.15,
+    activityMultiplier: 2.5,
     vibeChange: 5
   },
   {
     id: 'RAINY_DAY',
     type: 'negative',
     message: "It's pouring rain. Dampens the mood.",
+    icon: '🌧️',
+    baseChance: 0.18,
+    activityMultiplier: 1.2,
     vibeChange: -5
   },
   {
     id: 'POTHOLE',
     type: 'negative',
     message: "Ouch! Hit a nasty pothole.",
+    icon: '🕳️',
+    baseChance: 0.12,
+    activityMultiplier: 2.0,
     vibeChange: -5,
     carHealthChange: -5
   },
@@ -145,6 +160,9 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'FRIENDLY_STRANGER',
     type: 'positive',
     message: "A kind stranger offers you some homemade cookies!",
+    icon: '🍪',
+    baseChance: 0.08,
+    activityMultiplier: 4.0,
     vibeChange: 8,
     snackChange: 1
   },
@@ -152,6 +170,9 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'CAR_TROUBLE',
     type: 'negative',
     message: "Your car makes a concerning noise. Time for some maintenance.",
+    icon: '🔧',
+    baseChance: 0.15,
+    activityMultiplier: 1.8,
     carHealthChange: -10,
     vibeChange: -3
   },
@@ -159,12 +180,18 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'SCENIC_VIEW',
     type: 'positive',
     message: "You stop at a breathtaking viewpoint. Oregon's beauty lifts your spirits!",
+    icon: '🏞️',
+    baseChance: 0.25,
+    activityMultiplier: 2.2,
     vibeChange: 12
   },
   {
     id: 'TRAFFIC_JAM',
     type: 'negative',
     message: "Stuck in unexpected traffic. This is frustrating!",
+    icon: '🚗',
+    baseChance: 0.14,
+    activityMultiplier: 1.5,
     vibeChange: -8,
     fuelChange: -2
   },
@@ -172,6 +199,9 @@ export const DEFAULT_GAME_EVENTS_DATA: GameEvent[] = [
     id: 'ROADSIDE_ASSISTANCE',
     type: 'positive',
     message: "AAA shows up just when you need them most!",
+    icon: '🚛',
+    baseChance: 0.06,
+    activityMultiplier: 5.0,
     carHealthChange: 15,
     vibeChange: 5
   }
@@ -185,14 +215,16 @@ export const DEFAULT_ACTIVITY_TEMPLATES: Record<string, Partial<GameActivity>[]>
       description: 'Walk around the city center',
       moneyCost: 0,
       vibeChange: 5,
-      timeCost: 1
+      timeCost: 1,
+      assignedEventIds: ['LOCAL_TIP', 'FRIENDLY_STRANGER']
     },
     {
       name: 'Visit Local Museum',
       description: 'Learn about local history and culture',
       moneyCost: 12,
       vibeChange: 8,
-      timeCost: 1
+      timeCost: 1,
+      assignedEventIds: ['LOCAL_TIP']
     }
   ],
   nature: [
@@ -202,7 +234,8 @@ export const DEFAULT_ACTIVITY_TEMPLATES: Record<string, Partial<GameActivity>[]>
       moneyCost: 0,
       vibeChange: 12,
       timeCost: 1,
-      carHealthChange: -2 // dirt roads wear on car
+      carHealthChange: -2, // dirt roads wear on car
+      assignedEventIds: ['SCENIC_VIEW', 'GOOD_WEATHER']
     }
   ],
   beach: [
@@ -211,7 +244,8 @@ export const DEFAULT_ACTIVITY_TEMPLATES: Record<string, Partial<GameActivity>[]>
       description: 'Stroll along the shoreline',
       moneyCost: 0,
       vibeChange: 8,
-      timeCost: 1
+      timeCost: 1,
+      assignedEventIds: ['SCENIC_VIEW', 'GOOD_WEATHER']
     },
     {
       name: 'Tide Pool Exploration',
@@ -219,7 +253,8 @@ export const DEFAULT_ACTIVITY_TEMPLATES: Record<string, Partial<GameActivity>[]>
       moneyCost: 0,
       vibeChange: 10,
       timeCost: 1,
-      eventChance: 0.15
+      eventChance: 0.15,
+      assignedEventIds: ['FOUND_SNACKS', 'SCENIC_VIEW']
     }
   ]
 };

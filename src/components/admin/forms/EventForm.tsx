@@ -116,6 +116,43 @@ export const EventForm: FC<EventFormProps> = ({
           />
         </FormField>
       </FormSection>
+
+      <FormSection title="Event Probability">
+        <FormField label="Base Chance (0-100%)" className="col-span-1">
+          <input 
+            type="number" 
+            step="0.01"
+            min="0"
+            max="1"
+            value={event.baseChance || 0.15} 
+            onChange={e => handleChange('baseChance', parseFloat(e.target.value) || 0.15)} 
+            className={inputClass} 
+          />
+          <p className="text-xs text-gray-500 mt-1">Default probability when triggered randomly</p>
+        </FormField>
+        
+        <FormField label="Activity Multiplier" className="col-span-1">
+          <input 
+            type="number" 
+            step="0.1"
+            min="0.1"
+            max="10"
+            value={event.activityMultiplier || 2.0} 
+            onChange={e => handleChange('activityMultiplier', parseFloat(e.target.value) || 2.0)} 
+            className={inputClass} 
+          />
+          <p className="text-xs text-gray-500 mt-1">Multiplier applied when triggered by assigned activities</p>
+        </FormField>
+
+        <div className="col-span-full">
+          <div className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
+            <strong>Enhanced Probability:</strong> {Math.round((event.baseChance || 0.15) * (event.activityMultiplier || 2.0) * 100)}%
+            {(event.baseChance || 0.15) * (event.activityMultiplier || 2.0) > 1.0 && (
+              <span className="text-orange-600"> (capped at 100%)</span>
+            )}
+          </div>
+        </div>
+      </FormSection>
       
       <div className="pt-4 sticky bottom-0 bg-white pb-4">
         <AdminActionButton

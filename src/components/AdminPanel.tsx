@@ -485,6 +485,7 @@ export const AdminPanel: FC<AdminPanelProps> = ({
           onSave={saveActivity}
           onChange={setEditingActivity}
           isUserAuthenticated={isUserAuthenticated}
+          gameEvents={gameEvents}
         />
       </Modal>
 

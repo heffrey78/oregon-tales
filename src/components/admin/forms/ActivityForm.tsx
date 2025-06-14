@@ -3,20 +3,22 @@ import { FormField } from '../FormField';
 import { FormSection } from '../FormSection';
 import { AdminActionButton } from '../AdminActionButton';
 import { EmojiPicker } from '../EmojiPicker';
-import type { GameActivity } from '../../../types/game';
+import type { GameActivity, GameEvent } from '../../../types/game';
 
 interface ActivityFormProps {
   activity: GameActivity | null;
   onSave: (e: React.FormEvent) => void;
   onChange: React.Dispatch<React.SetStateAction<GameActivity | null>>;
   isUserAuthenticated: boolean;
+  gameEvents: GameEvent[];
 }
 
 export const ActivityForm: FC<ActivityFormProps> = ({
   activity,
   onSave,
   onChange,
-  isUserAuthenticated
+  isUserAuthenticated,
+  gameEvents
 }) => {
   const inputClass = "mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm";
   
@@ -40,6 +42,25 @@ export const ActivityForm: FC<ActivityFormProps> = ({
       return {
         ...prev,
         requiredResources: Object.keys(requiredResources).length > 0 ? requiredResources : undefined
+      };
+    });
+  };
+
+  const handleAssignedEventChange = (eventId: string, isAssigned: boolean) => {
+    onChange(prev => {
+      if (!prev) return null;
+      
+      const assignedEventIds = [...(prev.assignedEventIds || [])];
+      if (isAssigned && !assignedEventIds.includes(eventId)) {
+        assignedEventIds.push(eventId);
+      } else if (!isAssigned) {
+        const index = assignedEventIds.indexOf(eventId);
+        if (index > -1) assignedEventIds.splice(index, 1);
+      }
+      
+      return {
+        ...prev,
+        assignedEventIds: assignedEventIds.length > 0 ? assignedEventIds : undefined
       };
     });
   };
@@ -202,7 +223,52 @@ export const ActivityForm: FC<ActivityFormProps> = ({
             onChange={e => handleChange('eventChance', parseFloat(e.target.value) || 0)} 
             className={inputClass} 
           />
+          <p className="text-xs text-gray-500 mt-1">Fallback chance for random events when no assigned events trigger</p>
         </FormField>
+      </FormSection>
+
+      {/* Assigned Events Section */}
+      <FormSection title="Assigned Events">
+        <div className="col-span-full">
+          <p className="text-sm text-gray-600 mb-3">
+            Select events that can be triggered by this activity. Assigned events have higher probability than random events.
+          </p>
+          {gameEvents.length > 0 ? (
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+              {gameEvents.map(event => (
+                <label key={event.id} className="flex items-start space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                  <input
+                    type="checkbox"
+                    checked={activity.assignedEventIds?.includes(event.id) || false}
+                    onChange={e => handleAssignedEventChange(event.id, e.target.checked)}
+                    className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{event.icon || '💬'}</span>
+                      <span className="font-medium text-sm">{event.id}</span>
+                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">{event.type}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">{event.message}</p>
+                    {(event.baseChance || event.activityMultiplier) && (
+                      <p className="text-xs text-purple-600 mt-1">
+                        Base: {Math.round((event.baseChance || 0.15) * 100)}% 
+                        {event.activityMultiplier && ` × ${event.activityMultiplier} = ${Math.round((event.baseChance || 0.15) * (event.activityMultiplier || 1) * 100)}%`}
+                      </p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No events available. Create some events first.</p>
+          )}
+          {activity.assignedEventIds && activity.assignedEventIds.length > 0 && (
+            <div className="mt-2 text-xs text-gray-600">
+              Selected: {activity.assignedEventIds.length} event{activity.assignedEventIds.length > 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
       </FormSection>
       
       {/* Requirements Section */}
